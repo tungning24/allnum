@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7AC943">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สร้างชุดตัวเลข</title>
+
+<style>
+body{
+    font-family: Arial, sans-serif;
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 15px;
+    background:#f5f5f5;
+}
+
+.section{
+    background:#fff;
+    padding:15px;
+    margin-bottom:15px;
+    border-radius:10px;
+}
+
+.buttons{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:10px;
+}
+
+.num-btn{
+    width:48px;
+    height:48px;
+    border:none;
+    border-radius:8px;
+    background:#ddd;
+    cursor:pointer;
+    font-size:18px;
+    font-weight:bold;
+}
+
+.num-btn.selected{
+    background:#2196f3;
+    color:white;
+}
+
+#summary{
+    background:#fff;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:15px;
+}
+
+.summary-row{
+    margin:8px 0;
+}
+
+.filter-btn{
+    display:inline-block;
+    min-width:32px;
+    padding:6px 10px;
+    margin:2px;
+    border-radius:6px;
+    background:#ddd;
+    cursor:pointer;
+    text-align:center;
+}
+
+.filter-btn.active{
+    background:#ff9800;
+    color:white;
+}
+
+#count{
+    margin:15px 0;
+    font-weight:bold;
+    font-size:18px;
+}
+
+#result{
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    min-height:150px;
+    white-space:pre-wrap;
+    font-family:Consolas, monospace;
+    line-height:1.8;
+}
+
+.digit-highlight{
+    background:#ffeb3b;
+    font-weight:bold;
+    border-radius:3px;
+    padding:0 2px;
+}
+</style>
+</head>
+<body>
+<script>
+if ("serviceWorker" in navigator) {
+
+    window.addEventListener("load", () => {
+
+        navigator.serviceWorker
+            .register("./sw.js")
+            .then(() => {
+                console.log("Service Worker Registered");
+            });
+
+    });
+
+}
+</script>
+
+<div class="section">
+    <h3>หลักร้อย</h3>
+    <div class="buttons" id="hundreds"></div>
+</div>
+
+<div class="section">
+    <h3>หลักสิบ</h3>
+    <div class="buttons" id="tens"></div>
+</div>
+
+<div class="section">
+    <h3>หลักหน่วย</h3>
+    <div class="buttons" id="ones"></div>
+</div>
+
+<div id="summary"></div>
+<div id="count">ทั้งหมด 0 ชุด</div>
+<div id="result"></div>
+
+<script>
+
+const selected = {
+    hundreds: [],
+    tens: [],
+    ones: []
+};
+
+let highlightFilter = null;
+
+function createButtons(containerId, key){
+
+    const container = document.getElementById(containerId);
+
+    for(let i=0;i<=9;i++){
+
+        const btn = document.createElement("button");
+        btn.className = "num-btn";
+        btn.textContent = i;
+
+        btn.addEventListener("click", () => {
+
+            const idx = selected[key].indexOf(i);
+
+            if(idx > -1){
+                selected[key].splice(idx,1);
+                btn.classList.remove("selected");
+            }else{
+
+                if(selected[key].length >= 3){
+                    return;
+                }
+
+                selected[key].push(i);
+                btn.classList.add("selected");
+            }
+
+            generateNumbers();
+        });
+
+        container.appendChild(btn);
+    }
+}
+
+function toggleHighlight(position, digit){
+
+    if(
+        highlightFilter &&
+        highlightFilter.position === position &&
+        highlightFilter.digit === digit
+    ){
+        highlightFilter = null;
+    }else{
+        highlightFilter = {
+            position,
+            digit
+        };
+    }
+
+    generateNumbers();
+}
+
+function renderSummary(){
+
+    const summary = document.getElementById("summary");
+
+    const createRow = (label,key) => {
+
+        return `
+            <div class="summary-row">
+                <strong>${label}:</strong>
+                ${selected[key].map(n => {
+
+                    const active =
+                        highlightFilter &&
+                        highlightFilter.position === key &&
+                        highlightFilter.digit === n;
+
+                    return `
+                        <span
+                            class="filter-btn ${active ? 'active' : ''}"
+                            onclick="toggleHighlight('${key}',${n})">
+                            ${n}
+                        </span>
+                    `;
+                }).join("")}
+            </div>
+        `;
+    };
+
+    summary.innerHTML =
+        createRow("ร้อย","hundreds") +
+        createRow("สิบ","tens") +
+        createRow("หน่วย","ones");
+}
+
+function generateNumbers(){
+
+    renderSummary();
+
+    const h = selected.hundreds;
+    const t = selected.tens;
+    const o = selected.ones;
+
+    if(!h.length || !t.length || !o.length){
+
+        document.getElementById("count").textContent =
+            "ทั้งหมด 0 ชุด";
+
+        document.getElementById("result").innerHTML = "";
+
+        return;
+    }
+
+    const result = [];
+
+    for(const a of h){
+        for(const b of t){
+            for(const c of o){
+                result.push(`${a}${b}${c}`);
+            }
+        }
+    }
+
+    result.sort((a,b)=>Number(a)-Number(b));
+
+    document.getElementById("count").textContent =
+        `ทั้งหมด ${result.length} ชุด`;
+
+    let html = "";
+
+    for(const num of result){
+
+        if(!highlightFilter){
+            html += num + "<br>";
+            continue;
+        }
+
+        const chars = num.split("");
+
+        const pos =
+            highlightFilter.position === "hundreds" ? 0 :
+            highlightFilter.position === "tens" ? 1 :
+            2;
+
+        if(Number(chars[pos]) === highlightFilter.digit){
+
+            chars[pos] =
+                `<span class="digit-highlight">${chars[pos]}</span>`;
+        }
+
+        html += chars.join("") + "<br>";
+    }
+
+    document.getElementById("result").innerHTML = html;
+}
+
+createButtons("hundreds","hundreds");
+createButtons("tens","tens");
+createButtons("ones","ones");
+
+renderSummary();
+
+</script>
+
+</body>
+</html>
