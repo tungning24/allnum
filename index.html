@@ -145,6 +145,12 @@ const selected = {
 
 let highlightFilter = null;
 
+const limits = {
+    hundreds: 2,
+    tens: 2,
+    ones: 3
+};
+
 function createButtons(containerId, key){
 
     const container = document.getElementById(containerId);
@@ -164,7 +170,7 @@ function createButtons(containerId, key){
                 btn.classList.remove("selected");
             }else{
 
-                if(selected[key].length >= 3){
+                if(selected[key].length >= limits[key]){
                     return;
                 }
 
